@@ -8,9 +8,7 @@ from datetime import datetime, timedelta
 
 # Konfigurasi
 MONGO_URI = "mongodb+srv://teguhgmc:teguh234@capstone.oh1disa.mongodb.net/smartfishing?retryWrites=true&w=majority"
-API_KEY = "BFSB6HL7LP8R4X7GTBKXF3Q6T"
 LOKASI = "Tegal"
-JUMLAH_HARI = 50
 
 # Koneksi MongoDB
 client = MongoClient(MONGO_URI)
@@ -76,38 +74,30 @@ with tab1:
 with tab2:
     st.subheader("⛅ Riwayat Cuaca Harian (Tegal)")
 
-    # Tanggal
-    end_date = datetime.today().date()
-    start_date = end_date - timedelta(days=JUMLAH_HARI)
-
-    url = (
-        f"https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/"
-        f"{LOKASI}/{start_date}/{end_date}"
-        f"?unitGroup=metric&key={API_KEY}&include=days&contentType=json"
-    )
-
-    res = requests.get(url)
-    data = res.json()
-    days_data = data.get("days", [])
-
-    # Simpan ke MongoDB
+    # Ambil data dari MongoDB
     cuaca_col = db["weather_tegal"]
-    cuaca_col.delete_many({})
-    cuaca_col.insert_many(days_data)
+    days_data = list(cuaca_col.find({}))
+
+    if not days_data:
+        st.warning("Data cuaca belum tersedia di database.")
+        st.stop()
 
     df_cuaca = pd.DataFrame(days_data)
+
+    # Pastikan kolom datetime dalam format datetime
     df_cuaca["datetime"] = pd.to_datetime(df_cuaca["datetime"])
     df_cuaca.set_index("datetime", inplace=True)
+    df_cuaca = df_cuaca.sort_index()
 
     col1, col2 = st.columns(2)
 
     with col1:
-        st.write("🌡️ Suhu Maksimum (°C)")
+        st.write("🌡 Suhu Maksimum (°C)")
         st.line_chart(df_cuaca["tempmax"])
 
         st.write("💧 Kelembapan (%)")
         st.line_chart(df_cuaca["humidity"])
 
     with col2:
-        st.write("🌡️ Suhu Minimum (°C)")
+        st.write("🌡 Suhu Minimum (°C)")
         st.line_chart(df_cuaca["tempmin"])
